@@ -1,9 +1,10 @@
 import io
 import json
 import unittest
+import urllib.error
 from unittest.mock import patch
 from tools import calculate, study_plan
-from agent import demo_reply, ai_reply
+from agent import AgentError, demo_reply, ai_reply
 
 
 class AgentTests(unittest.TestCase):
@@ -34,6 +35,15 @@ class AgentTests(unittest.TestCase):
         self.assertIn('4500', reply)
         self.assertEqual(calls[1]['messages'][-1]['content'], '4500')
         self.assertEqual(len(traces), 1)
+
+    def test_http_error_is_safe_and_actionable(self):
+        error = urllib.error.HTTPError('https://api.groq.com', 401, 'private response', {}, io.BytesIO(b'secret-provider-body'))
+        with patch('urllib.request.urlopen', side_effect=error):
+            with self.assertRaises(AgentError) as caught:
+                ai_reply('你好', [], 'private-key', 'test-model', lambda: True)
+        self.assertIn('401', str(caught.exception))
+        self.assertNotIn('private-key', str(caught.exception))
+        self.assertNotIn('secret-provider-body', str(caught.exception))
 
     def test_quota_stops_network(self):
         with patch('urllib.request.urlopen') as network:
