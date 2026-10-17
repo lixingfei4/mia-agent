@@ -52,6 +52,19 @@ class AgentTests(unittest.TestCase):
             self.assertIn('密钥格式', str(caught.exception))
             network.assert_not_called()
 
+    def test_unavailable_model_falls_back(self):
+        calls = []
+        def fallback_open(request, **kwargs):
+            calls.append(json.loads(request.data))
+            if len(calls) == 1:
+                raise urllib.error.HTTPError('https://api.groq.com', 404, 'Not Found', {}, io.BytesIO(b'{}'))
+            return io.BytesIO(json.dumps({'choices': [{'message': {'role': 'assistant', 'content': '你好'}}]}).encode())
+        with patch('urllib.request.urlopen', side_effect=fallback_open):
+            answer, traces, _ = ai_reply('你好', [], 'gsk_fake_key', 'unavailable-model', lambda: True)
+        self.assertEqual(answer, '你好')
+        self.assertEqual(calls[1]['model'], 'openai/gpt-oss-20b')
+        self.assertTrue(traces)
+
     def test_quota_stops_network(self):
         with patch('urllib.request.urlopen') as network:
             with self.assertRaises(ValueError):

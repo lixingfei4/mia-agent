@@ -9,6 +9,10 @@ class AgentError(ValueError):
     """可安全显示给用户的错误，不包含服务端响应正文或凭据。"""
 
 
+_MODEL_FALLBACKS = {}
+FALLBACK_MODEL = 'openai/gpt-oss-20b'
+
+
 TOOLS = [
     {'type': 'function', 'function': {'name': 'calculate', 'description': '计算算术表达式，所有算术问题必须使用此工具', 'parameters': {'type': 'object', 'properties': {'expression': {'type': 'string'}}, 'required': ['expression'], 'additionalProperties': False}}},
     {'type': 'function', 'function': {'name': 'study_plan', 'description': '生成可下载的七天学习计划', 'parameters': {'type': 'object', 'properties': {'topic': {'type': 'string'}, 'minutes': {'type': 'integer', 'minimum': 15, 'maximum': 180}}, 'required': ['topic', 'minutes'], 'additionalProperties': False}}},
@@ -43,6 +47,7 @@ def ai_reply(prompt, history, key, model, reserve):
         raise AgentError('Groq 密钥格式不正确：请在 Secrets 的 GROQ_API_KEY 中只填写以 gsk_ 开头的完整密钥，清除提示文字、空格和换行。')
     if not isinstance(model, str) or not re.fullmatch(r'[A-Za-z0-9./_-]+', model):
         raise AgentError('模型名称格式不正确，请检查 Secrets 中的 GROQ_MODEL，保留模型 ID 并去除空格或提示文字。')
+    active_model = _MODEL_FALLBACKS.get(model, model)
     messages = [{'role': 'system', 'content': '你是 Mia，友善的中文学习助手。所有计算必须调用 calculate；七天计划必须调用 study_plan。只使用允许的工具，不声称能访问电脑、浏览网页或保存文件。'}]
     messages += [{'role': m['role'], 'content': m['content'][:4000]} for m in history[-8:]]
     messages.append({'role': 'user', 'content': prompt})
@@ -50,7 +55,7 @@ def ai_reply(prompt, history, key, model, reserve):
     for _ in range(3):
         if not reserve():
             raise AgentError('本小时共享 AI 请求额度已用完，请稍后再试或切换演示模式')
-        payload = json.dumps({'model': model, 'messages': messages, 'tools': TOOLS,
+        payload = json.dumps({'model': active_model, 'messages': messages, 'tools': TOOLS,
                               'tool_choice': 'auto', 'max_tokens': 1200, 'temperature': 0.3}).encode()
         req = urllib.request.Request('https://api.groq.com/openai/v1/chat/completions', data=payload,
               headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json',
@@ -61,6 +66,12 @@ def ai_reply(prompt, history, key, model, reserve):
         except urllib.error.HTTPError as exc:
             # 只分类已知网关错误，绝不向页面返回响应正文。
             error_body = exc.read(4096).decode('utf-8', errors='replace')
+            exc.close()
+            if exc.code == 404 and active_model != FALLBACK_MODEL:
+                active_model = FALLBACK_MODEL
+                _MODEL_FALLBACKS[model] = active_model
+                traces.append('原模型不可用，已自动改用 GPT OSS 20B')
+                continue
             if exc.code == 403 and '1010' in error_body:
                 raise AgentError('Groq 网关拒绝了应用连接（HTTP 403 / 1010），需要检查客户端连接方式。') from None
             raise AgentError({
