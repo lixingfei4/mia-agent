@@ -72,7 +72,7 @@ else:
 
 for index, message in enumerate(st.session_state.messages):
     with st.chat_message(message['role']):
-        st.markdown(message['content'])
+        st.markdown(message.get('plan') or message['content'])
         if message.get('traces'):
             with st.expander('查看工具调用记录'):
                 for trace in message['traces']:

@@ -49,7 +49,7 @@ def ai_reply(prompt, history, key, model, reserve):
         raise AgentError('模型名称格式不正确，请检查 Secrets 中的 GROQ_MODEL，保留模型 ID 并去除空格或提示文字。')
     active_model = _MODEL_FALLBACKS.get(model, model)
     messages = [{'role': 'system', 'content': '你是 Mia，友善的中文学习助手。所有计算必须调用 calculate；七天计划必须调用 study_plan。只使用允许的工具，不声称能访问电脑、浏览网页或保存文件。'}]
-    messages += [{'role': m['role'], 'content': m['content'][:4000]} for m in history[-8:]]
+    messages += [{'role': m['role'], 'content': (m.get('plan') or m['content'])[:4000]} for m in history[-8:]]
     messages.append({'role': 'user', 'content': prompt})
     traces, plan = [], None
     for _ in range(3):
@@ -85,6 +85,8 @@ def ai_reply(prompt, history, key, model, reserve):
             raise AgentError('无法连接 Groq，请检查服务可达性，或稍后使用演示模式重试。') from None
         calls = message.get('tool_calls') or []
         if not calls:
+            if plan:
+                return plan + '\n\n请使用下方「下载 7 天学习计划」按钮保存 Markdown 文件。', traces, plan
             return message.get('content') or '模型未返回文本，请重试。', traces, plan
         if len(calls) > 4:
             raise ValueError('工具请求过多，请缩小任务')

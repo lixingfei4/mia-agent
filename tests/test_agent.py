@@ -65,6 +65,20 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(calls[1]['model'], 'openai/gpt-oss-20b')
         self.assertTrue(traces)
 
+    def test_plan_download_uses_real_tool_artifact(self):
+        responses = [
+            {'role': 'assistant', 'content': None, 'tool_calls': [{'id': 'p', 'type': 'function', 'function': {'name': 'study_plan', 'arguments': '{"topic":"Python","minutes":45}'}}]},
+            {'role': 'assistant', 'content': '下载不存在的 PDF: sandbox:/tmp/plan.pdf'},
+        ]
+        def fake_open(request, **kwargs):
+            return io.BytesIO(json.dumps({'choices': [{'message': responses.pop(0)}]}).encode())
+        with patch('urllib.request.urlopen', side_effect=fake_open):
+            answer, traces, plan = ai_reply('制定七天学习计划', [], 'gsk_fake_key', 'test-model', lambda: True)
+        self.assertEqual(plan.count('## 第 '), 7)
+        self.assertIn('45 分钟', plan)
+        self.assertIn(plan, answer)
+        self.assertNotIn('sandbox:', answer)
+
     def test_quota_stops_network(self):
         with patch('urllib.request.urlopen') as network:
             with self.assertRaises(ValueError):
