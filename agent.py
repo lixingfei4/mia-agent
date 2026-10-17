@@ -39,6 +39,10 @@ def demo_reply(prompt):
 
 
 def ai_reply(prompt, history, key, model, reserve):
+    if not isinstance(key, str) or not key.startswith('gsk_') or not key.isascii() or any(c.isspace() for c in key):
+        raise AgentError('Groq 密钥格式不正确：请在 Secrets 的 GROQ_API_KEY 中只填写以 gsk_ 开头的完整密钥，清除提示文字、空格和换行。')
+    if not isinstance(model, str) or not re.fullmatch(r'[A-Za-z0-9./_-]+', model):
+        raise AgentError('模型名称格式不正确，请检查 Secrets 中的 GROQ_MODEL，保留模型 ID 并去除空格或提示文字。')
     messages = [{'role': 'system', 'content': '你是 Mia，友善的中文学习助手。所有计算必须调用 calculate；七天计划必须调用 study_plan。只使用允许的工具，不声称能访问电脑、浏览网页或保存文件。'}]
     messages += [{'role': m['role'], 'content': m['content'][:4000]} for m in history[-8:]]
     messages.append({'role': 'user', 'content': prompt})
