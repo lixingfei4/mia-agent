@@ -68,8 +68,18 @@ def ai_reply(prompt, history, key, model, reserve):
     for _ in range(3):
         if not reserve():
             raise AgentError('本小时共享 AI 请求额度已用完，请稍后再试或切换演示模式')
-        payload = json.dumps({'model': active_model, 'messages': messages, 'tools': TOOLS,
-                              'tool_choice': 'auto', 'max_tokens': 1200, 'temperature': 0.3}).encode()
+        request_messages = [m.copy() for m in messages]
+        options = {'max_completion_tokens': 1200, 'temperature': 0.3}
+        if active_model.startswith('openai/gpt-oss-'):
+            # Groq 的 reasoning 指南建议将任务指令放在 user 消息中。
+            # 每轮从原始消息复制，避免工具循环中重复添加指令或改写历史。
+            request_messages = [m for m in request_messages if m['role'] != 'system']
+            current_user = next(m for m in reversed(request_messages) if m['role'] == 'user')
+            current_user['content'] = SYSTEM_PROMPT + '\n\n请按以上要求完成当前请求：\n' + current_user['content']
+            options.update(max_completion_tokens=2400, temperature=0.6,
+                           reasoning_effort='medium', reasoning_format='hidden')
+        payload = json.dumps({'model': active_model, 'messages': request_messages, 'tools': TOOLS,
+                              'tool_choice': 'auto', **options}).encode()
         req = urllib.request.Request('https://api.groq.com/openai/v1/chat/completions', data=payload,
               headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json',
                        'User-Agent': 'Mia-Agent/1.0', 'Accept': 'application/json'})

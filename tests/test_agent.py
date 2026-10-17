@@ -4,7 +4,7 @@ import unittest
 import urllib.error
 from unittest.mock import patch
 from tools import calculate, study_plan
-from agent import AgentError, demo_reply, ai_reply
+from agent import AgentError, SYSTEM_PROMPT, demo_reply, ai_reply
 
 
 class AgentTests(unittest.TestCase):
@@ -63,7 +63,29 @@ class AgentTests(unittest.TestCase):
             answer, traces, _ = ai_reply('你好', [], 'gsk_fake_key', 'unavailable-model', lambda: True)
         self.assertEqual(answer, '你好')
         self.assertEqual(calls[1]['model'], 'openai/gpt-oss-120b')
+        self.assertEqual(calls[1]['messages'][0]['role'], 'user')
+        self.assertIn(SYSTEM_PROMPT, calls[1]['messages'][0]['content'])
         self.assertTrue(traces)
+
+    def test_reasoning_model_keeps_history_and_tool_messages(self):
+        history = [{'role': 'user', 'content': '之前的问题'}, {'role': 'assistant', 'content': '之前的回答'}]
+        responses = [
+            {'role': 'assistant', 'content': None, 'tool_calls': [{'id': 'c', 'type': 'function', 'function': {'name': 'calculate', 'arguments': '{"expression":"6*7"}'}}]},
+            {'role': 'assistant', 'content': '42'},
+        ]
+        calls = []
+        def fake_open(request, **kwargs):
+            calls.append(json.loads(request.data))
+            return io.BytesIO(json.dumps({'choices': [{'message': responses.pop(0)}]}).encode())
+        with patch('urllib.request.urlopen', side_effect=fake_open):
+            reply, _, _ = ai_reply('6*7', history, 'gsk_fake_key', 'openai/gpt-oss-120b', lambda: True)
+        self.assertEqual(reply, '42')
+        self.assertEqual(calls[1]['messages'][:2], history)
+        self.assertEqual(calls[0]['messages'][2], calls[1]['messages'][2])
+        self.assertEqual(calls[1]['messages'][2]['content'].count(SYSTEM_PROMPT), 1)
+        self.assertEqual(calls[1]['messages'][-1], {'role': 'tool', 'tool_call_id': 'c', 'content': '42'})
+        self.assertEqual(calls[1]['reasoning_format'], 'hidden')
+        self.assertNotIn(SYSTEM_PROMPT, history[0]['content'])
 
     def test_plan_download_uses_real_tool_artifact(self):
         responses = [
