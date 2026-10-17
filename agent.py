@@ -5,6 +5,10 @@ import urllib.request
 import urllib.error
 from tools import calculate, study_plan
 
+class AgentError(ValueError):
+    """可安全显示给用户的错误，不包含服务端响应正文或凭据。"""
+
+
 TOOLS = [
     {'type': 'function', 'function': {'name': 'calculate', 'description': '计算算术表达式，所有算术问题必须使用此工具', 'parameters': {'type': 'object', 'properties': {'expression': {'type': 'string'}}, 'required': ['expression'], 'additionalProperties': False}}},
     {'type': 'function', 'function': {'name': 'study_plan', 'description': '生成可下载的七天学习计划', 'parameters': {'type': 'object', 'properties': {'topic': {'type': 'string'}, 'minutes': {'type': 'integer', 'minimum': 15, 'maximum': 180}}, 'required': ['topic', 'minutes'], 'additionalProperties': False}}},
@@ -41,7 +45,7 @@ def ai_reply(prompt, history, key, model, reserve):
     traces, plan = [], None
     for _ in range(3):
         if not reserve():
-            raise ValueError('本小时共享 AI 请求额度已用完，请稍后再试或切换演示模式')
+            raise AgentError('本小时共享 AI 请求额度已用完，请稍后再试或切换演示模式')
         payload = json.dumps({'model': model, 'messages': messages, 'tools': TOOLS,
                               'tool_choice': 'auto', 'max_tokens': 1200, 'temperature': 0.3}).encode()
         req = urllib.request.Request('https://api.groq.com/openai/v1/chat/completions', data=payload,
@@ -50,9 +54,15 @@ def ai_reply(prompt, history, key, model, reserve):
             with urllib.request.urlopen(req, timeout=35) as response:
                 message = json.load(response)['choices'][0]['message']
         except urllib.error.HTTPError as exc:
-            raise ValueError({401: 'API Key 无效，请检查服务端配置', 429: '免费额度或请求频率已达上限，请稍后再试'}.get(exc.code, '模型服务暂时不可用，请尝试演示模式')) from None
+            raise AgentError({
+                400: '模型服务拒绝了请求（HTTP 400），请检查 GROQ_MODEL 是否支持当前工具调用。',
+                401: 'Groq 密钥验证失败（HTTP 401），请检查 Secrets 中的 GROQ_API_KEY 是否为有效的新密钥。',
+                403: 'Groq 拒绝访问（HTTP 403），请检查账户、模型权限及服务地区限制。',
+                404: 'Groq 模型或接口不存在（HTTP 404），请检查 GROQ_MODEL。',
+                429: 'Groq 免费额度或请求频率已达上限（HTTP 429），请稍后再试。',
+            }.get(exc.code, f'Groq 暂时不可用（HTTP {exc.code}），请稍后重试。')) from None
         except (urllib.error.URLError, TimeoutError):
-            raise ValueError('无法连接模型服务，请检查网络或使用演示模式') from None
+            raise AgentError('无法连接 Groq，请检查服务可达性，或稍后使用演示模式重试。') from None
         calls = message.get('tool_calls') or []
         if not calls:
             return message.get('content') or '模型未返回文本，请重试。', traces, plan
