@@ -53,11 +53,16 @@ def ai_reply(prompt, history, key, model, reserve):
         payload = json.dumps({'model': model, 'messages': messages, 'tools': TOOLS,
                               'tool_choice': 'auto', 'max_tokens': 1200, 'temperature': 0.3}).encode()
         req = urllib.request.Request('https://api.groq.com/openai/v1/chat/completions', data=payload,
-              headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
+              headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json',
+                       'User-Agent': 'Mia-Agent/1.0', 'Accept': 'application/json'})
         try:
             with urllib.request.urlopen(req, timeout=35) as response:
                 message = json.load(response)['choices'][0]['message']
         except urllib.error.HTTPError as exc:
+            # 只分类已知网关错误，绝不向页面返回响应正文。
+            error_body = exc.read(4096).decode('utf-8', errors='replace')
+            if exc.code == 403 and '1010' in error_body:
+                raise AgentError('Groq 网关拒绝了应用连接（HTTP 403 / 1010），需要检查客户端连接方式。') from None
             raise AgentError({
                 400: '模型服务拒绝了请求（HTTP 400），请检查 GROQ_MODEL 是否支持当前工具调用。',
                 401: 'Groq 密钥验证失败（HTTP 401），请检查 Secrets 中的 GROQ_API_KEY 是否为有效的新密钥。',
