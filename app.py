@@ -3,7 +3,7 @@ import time
 import threading
 import hmac
 import streamlit as st
-from agent import demo_reply, ai_reply
+from agent import AgentError, demo_reply, ai_reply
 
 st.set_page_config(page_title='Mia Agent 1.0', page_icon='🌱', layout='centered')
 
@@ -101,6 +101,8 @@ if prompt:
             else:
                 answer, traces, plan = ai_reply(prompt, history, key,
                     setting('GROQ_MODEL', 'llama-3.3-70b-versatile'), reserve)
+        except AgentError as exc:
+            answer, traces, plan = str(exc), [], None
         except (ValueError, TypeError, SyntaxError, ArithmeticError):
             answer, traces, plan = '本次请求未完成。请检查算式、API 配置、网络或免费额度后重试。', [], None
     st.session_state.messages.append({'role': 'assistant', 'content': answer, 'traces': traces, 'plan': plan})
