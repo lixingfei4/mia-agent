@@ -62,6 +62,10 @@ if mode == 'AI 聊天':
         st.stop()
     entered = st.text_input('AI 体验口令', type='password')
     if not hmac.compare_digest(entered.encode(), str(password).encode()):
+        if entered:
+            st.error('体验口令不匹配。请输入与 Secrets 中 ACCESS_PASSWORD 完全相同的内容；如果刚修改过配置，请等待约一分钟后刷新。')
+        else:
+            st.info('请输入你为 Mia 设置的体验口令，然后按回车。')
         st.stop()
 else:
     st.info('当前是规则演示模式：计算和下载可用；接入 API 后才支持自由 AI 聊天。')
