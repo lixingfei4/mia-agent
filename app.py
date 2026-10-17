@@ -60,9 +60,13 @@ if mode == 'AI 聊天':
     if not password:
         st.info('AI 模式需要服务端设置 ACCESS_PASSWORD，避免公开消耗账户额度。')
         st.stop()
-    entered = st.text_input('AI 体验口令', type='password')
+    entered = st.text_input('AI 体验口令', type='password',
+        placeholder='填写你自己设置的 Mia 口令，不是 gsk_ 密钥',
+        help='这是 Secrets 中 ACCESS_PASSWORD 对应的访问密码。Groq API Key 已在服务端配置，不需要在这里输入。')
     if not hmac.compare_digest(entered.encode(), str(password).encode()):
-        if entered:
+        if entered.startswith('gsk_'):
+            st.error('这里填的是你自己设置的 Mia 访问口令。你输入了 Groq API Key；请使用 Secrets 中 ACCESS_PASSWORD 对应的口令。')
+        elif entered:
             st.error('体验口令不匹配。请输入与 Secrets 中 ACCESS_PASSWORD 完全相同的内容；如果刚修改过配置，请等待约一分钟后刷新。')
         else:
             st.info('请输入你为 Mia 设置的体验口令，然后按回车。')
