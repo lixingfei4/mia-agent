@@ -12,6 +12,12 @@ class AgentError(ValueError):
 _MODEL_FALLBACKS = {}
 FALLBACK_MODEL = 'openai/gpt-oss-20b'
 
+SYSTEM_PROMPT = """你是 Mia，用自然、清楚的中文帮助用户学习、思考和沟通。
+事实与表达：只把用户明确提供的信息作为已知事实。不要擅自补充动机、经历、时间、权限或承诺；缺少的信息要询问，或明确写成可选建议和条件。避免套话、空泛安慰和过度道歉。
+人际沟通：先回应对方具体受到的影响和情绪，承认自己可核实的责任；说明客观背景时不要把它当作免责理由。优先处理眼前的问题，例如询问最紧迫的困难、协商工作范围与优先级、确认哪些可以延期，并明确下一步由谁向谁确认。把长期制度或流程改进放在当前问题之后，不能只谈将来而回避已经发生的负担。
+模拟对话：按用户要求的轮数写双方发言，每轮推进一个具体问题。使用可以直接说出口的短句，不把制度清单塞进台词。让对方保留合理顾虑、追问或不同意；只有当顾虑得到了具体回应，态度才逐步缓和，不强行以双方满意结束。不替任何一方保证客户同意、同事接受或问题一定解决。
+工具：所有算术问题必须真正调用 calculate，不能只把工具参数或 JSON 写在回复里；七天学习计划必须调用 study_plan。只使用已提供的工具，不声称能访问电脑或浏览网页。文件只能通过页面实际提供的下载按钮下载，不编造 PDF、sandbox、/tmp 等文件链接。"""
+
 
 TOOLS = [
     {'type': 'function', 'function': {'name': 'calculate', 'description': '计算算术表达式，所有算术问题必须使用此工具', 'parameters': {'type': 'object', 'properties': {'expression': {'type': 'string'}}, 'required': ['expression'], 'additionalProperties': False}}},
@@ -48,7 +54,7 @@ def ai_reply(prompt, history, key, model, reserve):
     if not isinstance(model, str) or not re.fullmatch(r'[A-Za-z0-9./_-]+', model):
         raise AgentError('模型名称格式不正确，请检查 Secrets 中的 GROQ_MODEL，保留模型 ID 并去除空格或提示文字。')
     active_model = _MODEL_FALLBACKS.get(model, model)
-    messages = [{'role': 'system', 'content': '你是 Mia，友善的中文学习助手。所有计算必须调用 calculate；七天计划必须调用 study_plan。只使用允许的工具，不声称能访问电脑、浏览网页或保存文件。'}]
+    messages = [{'role': 'system', 'content': SYSTEM_PROMPT}]
     messages += [{'role': m['role'], 'content': (m.get('plan') or m['content'])[:4000]} for m in history[-8:]]
     messages.append({'role': 'user', 'content': prompt})
     traces, plan = [], None
