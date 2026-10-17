@@ -10,7 +10,7 @@ class AgentError(ValueError):
 
 
 _MODEL_FALLBACKS = {}
-FALLBACK_MODEL = 'openai/gpt-oss-20b'
+FALLBACK_MODEL = 'openai/gpt-oss-120b'
 
 SYSTEM_PROMPT = """你是 Mia，用自然、清楚的中文帮助用户学习、思考和沟通。
 事实与表达：只把用户明确提供的信息作为已知事实。历史助手回复中的推测和示例不构成事实，用户重复问题时不要照搬先前回复中的细节。不要擅自补充动机、经历、时间、权限或承诺；缺少的信息要询问，或明确写成可选建议和条件。严格区分事情发生的时间与通知的时间，不能由通知晚推断对方提出要求也晚。避免套话、空泛安慰和过度道歉。
@@ -76,7 +76,7 @@ def ai_reply(prompt, history, key, model, reserve):
             if exc.code == 404 and active_model != FALLBACK_MODEL:
                 active_model = FALLBACK_MODEL
                 _MODEL_FALLBACKS[model] = active_model
-                traces.append('原模型不可用，已自动改用 GPT OSS 20B')
+                traces.append('原模型不可用，已自动改用 GPT OSS 120B')
                 continue
             if exc.code == 403 and '1010' in error_body:
                 raise AgentError('Groq 网关拒绝了应用连接（HTTP 403 / 1010），需要检查客户端连接方式。') from None

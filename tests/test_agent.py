@@ -62,7 +62,7 @@ class AgentTests(unittest.TestCase):
         with patch('urllib.request.urlopen', side_effect=fallback_open):
             answer, traces, _ = ai_reply('你好', [], 'gsk_fake_key', 'unavailable-model', lambda: True)
         self.assertEqual(answer, '你好')
-        self.assertEqual(calls[1]['model'], 'openai/gpt-oss-20b')
+        self.assertEqual(calls[1]['model'], 'openai/gpt-oss-120b')
         self.assertTrue(traces)
 
     def test_plan_download_uses_real_tool_artifact(self):

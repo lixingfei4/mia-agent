@@ -100,7 +100,7 @@ if prompt:
                 answer, traces, plan = demo_reply(prompt)
             else:
                 answer, traces, plan = ai_reply(prompt, history, key,
-                    setting('GROQ_MODEL', 'openai/gpt-oss-20b'), reserve)
+                    setting('GROQ_MODEL', 'openai/gpt-oss-120b'), reserve)
         except AgentError as exc:
             answer, traces, plan = str(exc), [], None
         except (ValueError, TypeError, SyntaxError, ArithmeticError):

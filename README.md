@@ -33,7 +33,7 @@ python -m streamlit run app.py
 1. 前往 https://console.groq.com 注册并创建 API Key。确认账户保持 **Free**，不要升级 Developer 或添加付费方案。
 2. 官方提供 Free Plan，但会限制请求和 token；模型可用性、额度、地区及网络可达性以个人控制台为准，不保证永久免费或在所有地区可用。超过限制会报错，等待恢复。
 3. 复制 `.streamlit/secrets.toml.example` 为 `.streamlit/secrets.toml`，在自己电脑填写密钥和体验口令。不要把密钥发到聊天或提交 GitHub。
-4. 重启应用，切换「AI 聊天」并填写体验口令。默认模型 `openai/gpt-oss-20b`，如控制台不支持，在 Secrets 修改 `GROQ_MODEL` 为支持工具调用的可用模型。
+4. 重启应用，切换「AI 聊天」并填写体验口令。默认模型 `openai/gpt-oss-120b`，如控制台不支持，在 Secrets 修改 `GROQ_MODEL` 为支持工具调用的可用模型。
 5. 测试普通问答、计算和学习计划下载。无密钥时只能测试演示模式；模拟测试不能证明真实 API 可用。
 
 参考：[Groq 免费限额](https://console.groq.com/docs/rate-limits)、[计费条件](https://console.groq.com/docs/billing-faqs)、[工具调用](https://console.groq.com/docs/tool-use/overview)。
