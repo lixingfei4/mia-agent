@@ -2,13 +2,17 @@
 
 一个适合 Python 初学者理解和展示的 Streamlit 学习助手。
 
+**在线体验：[Mia Agent 1.0](https://mia-agent-lixingfei4.streamlit.app/)**
+
+公开版默认免费演示模式，计算、七天计划生成与文件下载已在云端验证。自由 AI 聊天需配置服务端 Groq 密钥和体验口令。
+
 - **免费演示**：无需账户或密钥；通过规则调用安全计算器、生成七天学习计划并下载 Markdown 文件。此模式不是大模型聊天。
 - **AI 聊天**：可选 Groq API；模型选择工具 → Python 执行 → 结果返回模型。显示真实工具调用记录。
 - 默认不调用 API，不产生模型费用。不提供网页搜索、任意代码执行或电脑文件访问。
 
 ## 在 Mac 上开始
 
-建议安装 Python 3.12 或 3.13（https://www.python.org/downloads/），避免使用过新的版本导致依赖安装失败。
+建议安装 [Python 3.12 或 3.13](https://www.python.org/downloads/)，避免使用过新的版本导致依赖安装失败。
 在项目文件夹打开终端，依次运行：
 
 ```bash
