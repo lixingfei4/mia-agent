@@ -31,7 +31,7 @@ class AgentTests(unittest.TestCase):
             calls.append(json.loads(request.data))
             return io.BytesIO(json.dumps({'choices': [{'message': responses.pop(0)}]}).encode())
         with patch('urllib.request.urlopen', side_effect=fake_open):
-            reply, traces, _ = ai_reply('125*36', [], 'fake-key', 'test-model', lambda: True)
+            reply, traces, _ = ai_reply('125*36', [], 'gsk_fake_key', 'test-model', lambda: True)
         self.assertIn('4500', reply)
         self.assertEqual(calls[1]['messages'][-1]['content'], '4500')
         self.assertEqual(len(traces), 1)
@@ -40,15 +40,22 @@ class AgentTests(unittest.TestCase):
         error = urllib.error.HTTPError('https://api.groq.com', 401, 'private response', {}, io.BytesIO(b'secret-provider-body'))
         with patch('urllib.request.urlopen', side_effect=error):
             with self.assertRaises(AgentError) as caught:
-                ai_reply('你好', [], 'private-key', 'test-model', lambda: True)
+                ai_reply('你好', [], 'gsk_private_key', 'test-model', lambda: True)
         self.assertIn('401', str(caught.exception))
-        self.assertNotIn('private-key', str(caught.exception))
+        self.assertNotIn('gsk_private_key', str(caught.exception))
         self.assertNotIn('secret-provider-body', str(caught.exception))
+
+    def test_placeholder_key_never_reaches_network(self):
+        with patch('urllib.request.urlopen') as network:
+            with self.assertRaises(AgentError) as caught:
+                ai_reply('你好', [], '提示文字', 'test-model', lambda: True)
+            self.assertIn('密钥格式', str(caught.exception))
+            network.assert_not_called()
 
     def test_quota_stops_network(self):
         with patch('urllib.request.urlopen') as network:
             with self.assertRaises(ValueError):
-                ai_reply('你好', [], 'fake-key', 'test-model', lambda: False)
+                ai_reply('你好', [], 'gsk_fake_key', 'test-model', lambda: False)
             network.assert_not_called()
 
 
